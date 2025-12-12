@@ -28,23 +28,23 @@ export function addReview(req, res) {
 
 }
 
-export function getReviews(req, res) {
+export async function getReviews(req, res) {
 
     const user = req.user;
-
-    if (user == null || user.role != "admin") {
-        Review.find({ isApproved: true }).then((reviews) => {
-            res.json(reviews)
-        })
-        return
-    }
-    if (user.role == "admin") {
-        Review.find().then((reviews) => {
-            res.json(reviews)
+    try {
+        if (user.role == "admin") {
+            const reviews = await Review.find();
+            res.json(reviews);
+        } else {
+            const reviews = await Review.find({ isApproved: true });
+            res.json(reviews);
+        }
+    } catch (error) {
+        res.status(500).json({
+            error: "Failed to fetch reviews"
         })
     }
 }
-
 export function deleteReview(req, res) {
     const email = req.params.email;
 
@@ -114,9 +114,11 @@ export function approveReview(req, res) {
                 error: "Review Approval Failed"
             })
         })
-    }else{
+    } else {
         res.status(403).json({
             message: "You are not an admin.Only the admin can authorized to approve this review"
         })
     }
 }
+
+
