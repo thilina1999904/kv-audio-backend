@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
 import bcrypt from "bcrypt"
 import reviewRouter from "./routes/reviewRouter.js";
+import inquiryRouter from "./routes/inquiryRouter.js";
 
 
 dotenv.config();
@@ -23,7 +24,6 @@ app.use((req,res,next)=>{
         jwt.verify(token,process.env.JWT_SECRET,(err,decoded)=>{
             if(!err){
                 req.user = decoded;
-            
             }
         });
      }
@@ -42,6 +42,16 @@ connection.once("open",()=>{
 app.use("/api/users",userRouter);
 app.use("/api/products",productRouter);
 app.use("/api/reviews",reviewRouter);
+app.use("/api/inquiries",inquiryRouter);
 app.listen(3000, () => {
     console.log("Server is running on port 3000");
 })
+
+
+//admin
+  //"email": "admin@gmail.com",
+  //"Password": "Admin@123"
+
+//customer
+   //"email": "customer1@gmail.com"
+  //"Password": "Customer@123",
