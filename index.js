@@ -8,11 +8,13 @@ import dotenv from "dotenv"
 import bcrypt from "bcrypt"
 import reviewRouter from "./routes/reviewRouter.js";
 import inquiryRouter from "./routes/inquiryRouter.js";
+import cors from "cors";
 
 
 dotenv.config();
 
-let app = express()
+const app = express()
+app.use(cors());
 
 app.use(bodyParser.json());
 
