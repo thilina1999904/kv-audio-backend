@@ -13,7 +13,7 @@ import cors from "cors";
 
 dotenv.config();
 
-const app = express()
+let app = express()
 app.use(cors());
 
 app.use(bodyParser.json());
@@ -57,3 +57,8 @@ app.listen(3000, () => {
 //customer
    //"email": "customer1@gmail.com"
   //"Password": "Customer@123",
+
+//   {
+//   "email": "customer.test@example.com",
+//   "password": "CustomerPassword123!"
+// }
