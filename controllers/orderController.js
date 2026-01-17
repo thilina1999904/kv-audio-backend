@@ -16,8 +16,10 @@ export async function createOrder(req, res) {
         endDate: new Date(data.endDate)
     };
 
+
+
     const lastOrder = await Order.findOne().sort({ orderId: -1 });
-    
+
     if (!lastOrder) {
         orderInfo.orderId = "ORD0001";
     } else {
@@ -27,7 +29,8 @@ export async function createOrder(req, res) {
         const formattedNumber = String(currentOrderNumber).padStart(4, '0');
         orderInfo.orderId = "ORD" + formattedNumber;
     }
-    // -----------------------------------------
+
+
 
     let oneDayCost = 0;
 
@@ -70,6 +73,75 @@ export async function createOrder(req, res) {
         console.error("Order process error:", e);
         res.status(500).json({
             message: "Order Creation Failed",
+            error: e.message
+        });
+    }
+}
+
+
+export async function getQuote(req, res) {
+    try {
+        const { orderedItems, days } = req.body;
+
+       
+        if (!Array.isArray(orderedItems) || orderedItems.length === 0) {
+            return res.status(400).json({
+                message: "orderedItems must be a non-empty array"
+            });
+        }
+
+        if (!days || days < 1) {
+            return res.status(400).json({
+                message: "Invalid number of days"
+            });
+        }
+
+        const orderInfo = {
+            orderedItems: [],
+            totalAmount: 0
+        };
+
+        let oneDayCost = 0;
+
+        for (const item of orderedItems) {
+            const product = await Product.findOne({ key: item.key });
+
+            if (!product) {
+                return res.status(400).json({
+                    message: `Product ${item.key} Not Found`
+                });
+            }
+
+            if (!product.availability) {
+                return res.status(400).json({
+                    message: `Product not available: ${product.key}`
+                });
+            }
+
+            orderInfo.orderedItems.push({
+                product: {
+                    key: product.key,
+                    name: product.name,
+                    image: product.image?.[0],
+                    price: product.price
+                },
+                quantity: item.qty
+            });
+
+            oneDayCost += product.price * item.qty;
+        }
+
+        orderInfo.totalAmount = oneDayCost * days;
+
+        res.status(200).json({
+            message: "Quote calculated successfully",
+            total: orderInfo.totalAmount
+        });
+
+    } catch (e) {
+        console.error("Order process error:", e);
+        res.status(500).json({
+            message: "Order Quote Failed",
             error: e.message
         });
     }
