@@ -1,67 +1,72 @@
-import mongoose from  "mongoose";
+import mongoose from "mongoose";
 const orderSchema = new mongoose.Schema({
-    orderId : {
+    orderId: {
         type: String,
         required: true,
         unique: true
     },
-    email:{
+    email: {
         type: String,
         required: true
     },
-    orderDate : {
+    orderDate: {
         type: Date,
         required: true,
         default: Date.now
     },
-    orderedItems :{
-        type:[
+    orderedItems: {
+        type: [
             {
-                product :{
-                    key:{
+                product: {
+                    key: {
                         type: String,
                         required: true
                     },
-                    name:{
+                    name: {
                         type: String,
                         required: true
                     },
-                    image :{
+                    image: {
                         type: String,
                         required: true
                     },
-                    price :{
+                    price: {
                         type: Number,
                         required: true
                     }
                 },
-                quantity:{
+                quantity: {
                     type: Number,
                     required: true
                 }
-               
+
             }
         ],
         required: true
     },
-    days:{
+    days: {
         type: Number,
         required: true
     },
-    startingDate:{
+    startingDate: {
         type: Date,
         required: true
     },
-    endDate:{
+    endDate: {
         type: Date,
         required: true
     },
-    isApproved:{
+    isApproved: {
         type: Boolean,
         required: true,
         default: false
     },
-    totalAmount:{
+    isDeclined: {
+        type: Boolean,
+        default: false
+    },
+
+    totalAmount: {
         type: Number,
         required: true
     }
