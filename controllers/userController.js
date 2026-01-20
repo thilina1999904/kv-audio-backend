@@ -2,6 +2,9 @@ import User from "../models/user.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv"
+// import axios from "axios";
+
+
 
 dotenv.config();
 
@@ -141,23 +144,94 @@ export async function blockedOrUnblockedUser(req, res) {
 }
 
 export function getUser(req, res) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized. User not authenticated",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: req.user,
+    });
+  } catch (error) {
+    console.error("Get user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching user",
+    });
+  }
+}
+export async function loginWithGoogle(req, res) {
     try {
-        if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                message: "Unauthorized. User not authenticated",
+        const { accessToken } = req.body;
+
+        if (!accessToken) {
+            return res.status(400).json({ error: "Access token required" });
+        }
+
+        /* -------- Get Google User Info (CORRECT) -------- */
+        const googleRes = await axios.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            }
+        );
+
+        const { email, name, picture } = googleRes.data;
+
+        if (!email) {
+            return res.status(400).json({ error: "Google account has no email" });
+        }
+
+        /* -------- Find or Create User -------- */
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            const [firstName, ...rest] = name.split(" ");
+            const lastName = rest.join(" ");
+
+            user = await User.create({
+                firstName,
+                lastName,
+                email,
+                profilePicture: picture,
+                role: "customer",   // MATCH YOUR SYSTEM
+                provider: "google",
+                isBlocked: false,
             });
         }
 
+        if (user.isBlocked) {
+            return res.status(403).json({ error: "Your account is blocked" });
+        }
+
+        /* -------- Create JWT -------- */
+        const token = jwt.sign(
+            {
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                role: user.role,
+                profilePicture: user.profilePicture,
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: "7d" }
+        );
+
+        /* -------- SEND RESPONSE (IMPORTANT) -------- */
         res.status(200).json({
-            success: true,
-            user: req.user,
+            message: "Google Login Successful",
+            token,
+            user,
         });
+
     } catch (error) {
-        console.error("Get user error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Server error while fetching user",
-        });
+        console.error(error.response?.data || error.message);
+        res.status(500).json({ error: "Google login failed" });
     }
 }
