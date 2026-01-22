@@ -1,86 +1,62 @@
-import express from "express"
-import bodyParser from "body-parser"
-import mongoose from "mongoose"
+import express from "express";
+import bodyParser from "body-parser";
+import mongoose from "mongoose";
 import userRouter from "./routes/userRouter.js";
 import productRouter from "./routes/productRouter.js";
-import jwt from "jsonwebtoken"
-import dotenv from "dotenv"
-import bcrypt from "bcrypt"
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+import bcrypt from "bcrypt";
 import reviewRouter from "./routes/reviewRouter.js";
 import inquiryRouter from "./routes/inquiryRouter.js";
 import cors from "cors";
 import orderRouter from "./routes/orderRouter.js";
 import adminRouter from "./routes/adminRouter.js";
-// import { getAdminStats } from "./controllers/adminController.js";
-// import adminRouter from "./routes/adminRouter.js";
-
 
 dotenv.config();
 
-let app = express()
+let app = express();
+
+// CORS - Vercel frontend එකට access දීමට පහසුයි
 app.use(cors());
 
 app.use(bodyParser.json());
 
-app.use((req,res,next)=>{
-    let token = req.headers["authorization"]
-     if(token!=null){
-        token = token.replace("Bearer ","")
-            
-        jwt.verify(token,process.env.JWT_SECRET,(err,decoded)=>{
-            if(!err){
+// Auth Middleware
+app.use((req, res, next) => {
+    let token = req.headers["authorization"];
+    if (token != null) {
+        token = token.replace("Bearer ", "");
+        jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+            if (!err) {
                 req.user = decoded;
             }
         });
-     }
-     next();
-})
+    }
+    next();
+});
 
+// MongoDB Connection
 let mongoUrl = process.env.MONGO_URL;
-
 mongoose.connect(mongoUrl)
+    .then(() => console.log("Database Connected Successfully!"))
+    .catch((err) => console.log("Database connection error: ", err));
 
-let connection = mongoose.connection
-connection.once("open",()=>{
-    console.log("Database Connected Successfully!");
-})
-
-app.use("/api/users",userRouter);
-app.use("/api/products",productRouter);
-app.use("/api/reviews",reviewRouter);
-app.use("/api/inquiries",inquiryRouter);
-app.use("/api/orders",orderRouter);
+// Routes
+app.use("/api/users", userRouter);
+app.use("/api/products", productRouter);
+app.use("/api/reviews", reviewRouter);
+app.use("/api/inquiries", inquiryRouter);
+app.use("/api/orders", orderRouter);
 app.use("/api/admin/", adminRouter);
-// app.use("/api/admin", getAdminStats)
-// app.use("/api/admin", adminRouter);
 
-app.listen(3000, () => {
-    console.log("Server is running on port 3000");
-})
+// Root Route (Host එක වැඩද බලන්න)
+app.get("/", (req, res) => {
+    res.send("vegaz Backend is running on Koyeb!");
+});
 
+// PORT එක Koyeb එකෙන් දෙන එක ගන්නවා, නැත්නම් 3000 ගන්නවා
+const PORT = process.env.PORT || 3000;
 
-//admin
-  //"email": "admin@gmail.com",
-  //"Password": "Admin@123"
-
-//customer
-   //"email": "customer1@gmail.com"
-  //"Password": "Customer@123",
-
-//   {
-//   "email": "customer.test@example.com",
-//   "password": "CustomerPassword123!"
-// }
-
-// {
-//   "email": "admin45@gmail.com",
-//   "password": "123456"
-// }
-
-
-// "email": "admin@kv-audio.lk",
-//   "password": "adminSecret2026",
-
-//   {
-//   "email": "customer1@example.com",
-//   "password": "password123",
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server is running on port ${PORT}`);
+});
