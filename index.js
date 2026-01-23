@@ -35,13 +35,13 @@ app.use((req, res, next) => {
     next();
 });
 
-// MongoDB Connection
+
 let mongoUrl = process.env.MONGO_URL;
 mongoose.connect(mongoUrl)
     .then(() => console.log("Database Connected Successfully!"))
     .catch((err) => console.log("Database connection error: ", err));
 
-// Routes
+
 app.use("/api/users", userRouter);
 app.use("/api/products", productRouter);
 app.use("/api/reviews", reviewRouter);
@@ -49,14 +49,15 @@ app.use("/api/inquiries", inquiryRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/admin/", adminRouter);
 
-// Root Route (Host එක වැඩද බලන්න)
+
 app.get("/", (req, res) => {
     res.send("vegaz Backend is running on Koyeb!");
 });
 
-// PORT එක Koyeb එකෙන් දෙන එක ගන්නවා, නැත්නම් 3000 ගන්නවා
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
+export default app;
