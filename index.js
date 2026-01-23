@@ -16,12 +16,15 @@ dotenv.config();
 
 let app = express();
 
-// CORS - Vercel frontend එකට access දීමට පහසුයි
-app.use(cors());
+// 1. CORS සැකසුම (අනිවාර්යයෙන්ම Routes වලට උඩින් තිබිය යුතුයි)
+app.use(cors({
+  origin: ["https://kv-audio-frontend-n.vercel.app", "http://localhost:5173"], // Frontend එකේ URL එක
+  credentials: true
+}));
 
 app.use(bodyParser.json());
 
-// Auth Middleware
+// 2. Auth Middleware
 app.use((req, res, next) => {
     let token = req.headers["authorization"];
     if (token != null) {
@@ -35,33 +38,32 @@ app.use((req, res, next) => {
     next();
 });
 
-
+// 3. MongoDB Connection
 let mongoUrl = process.env.MONGO_URL;
 mongoose.connect(mongoUrl)
     .then(() => console.log("Database Connected Successfully!"))
     .catch((err) => console.log("Database connection error: ", err));
 
-
+// 4. Routes
 app.use("/api/users", userRouter);
 app.use("/api/products", productRouter);
 app.use("/api/reviews", reviewRouter);
 app.use("/api/inquiries", inquiryRouter);
 app.use("/api/orders", orderRouter);
-app.use("/api/admin/", adminRouter);
-
+app.use("/api/admin", adminRouter);
 
 app.get("/", (req, res) => {
-    res.send("vegaz Backend is running on Koyeb!");
+    res.send("Skyrek Backend is running on Vercel!");
 });
 
+// 5. Port and Export
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server is running on port ${PORT}`);
-});
-
-app.use(cors({
-  origin: "https://kv-audio-frontend-n.vercel.app" // ඔයාගේ අලුත් frontend ලින්ක් එක
-}));
+// Local test කරනවා නම් විතරක් මේක වැඩ කරයි, Vercel එකට export default app අවශ්‍යයි
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+}
 
 export default app;
