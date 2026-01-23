@@ -1,7 +1,9 @@
 import Order from '../models/order.js';
 import Product from '../models/product.js';
 import { isItAdmin, isItCustomer } from './userController.js';
+import { sendStatusEmail } from '../utills/emailsender.js'; // Email utility එක import කරන්න
 
+// 1. Create Order
 export async function createOrder(req, res) {
     const data = req.body;
 
@@ -16,8 +18,6 @@ export async function createOrder(req, res) {
         startingDate: new Date(data.startingDate),
         endDate: new Date(data.endDate)
     };
-
-
 
     const lastOrder = await Order.findOne().sort({ orderId: -1 });
 
@@ -77,28 +77,18 @@ export async function createOrder(req, res) {
     }
 }
 
-
+// 2. Get Quote (Before ordering)
 export async function getQuote(req, res) {
     try {
         const { orderedItems, days } = req.body;
 
-       
         if (!Array.isArray(orderedItems) || orderedItems.length === 0) {
-            return res.status(400).json({
-                message: "orderedItems must be a non-empty array"
-            });
+            return res.status(400).json({ message: "orderedItems must be a non-empty array" });
         }
 
         if (!days || days < 1) {
-            return res.status(400).json({
-                message: "Invalid number of days"
-            });
+            return res.status(400).json({ message: "Invalid number of days" });
         }
-
-        const orderInfo = {
-            orderedItems: [],
-            totalAmount: 0
-        };
 
         let oneDayCost = 0;
 
@@ -106,106 +96,71 @@ export async function getQuote(req, res) {
             const product = await Product.findOne({ key: item.key });
 
             if (!product) {
-                return res.status(400).json({
-                    message: `Product ${item.key} Not Found`
-                });
+                return res.status(400).json({ message: `Product ${item.key} Not Found` });
             }
-
-            if (!product.availability) {
-                return res.status(400).json({
-                    message: `Product not available: ${product.key}`
-                });
-            }
-
-            orderInfo.orderedItems.push({
-                product: {
-                    key: product.key,
-                    name: product.name,
-                    image: product.image?.[0],
-                    price: product.price
-                },
-                quantity: item.qty
-            });
 
             oneDayCost += product.price * item.qty;
         }
 
-        orderInfo.totalAmount = oneDayCost * days;
-
         res.status(200).json({
             message: "Quote calculated successfully",
-            total: orderInfo.totalAmount
+            total: oneDayCost * days
         });
 
     } catch (e) {
-        console.error("Order process error:", e);
-        res.status(500).json({
-            message: "Order Quote Failed",
-            error: e.message
-        });
+        res.status(500).json({ message: "Order Quote Failed", error: e.message });
     }
 }
 
-
-export async function getOrders(req,res){
-    if(isItCustomer(req)){
-        try{
-            const orders = await Order.find({email:req.user.email});
+// 3. Get Orders (Admin and Customer)
+export async function getOrders(req, res) {
+    if (isItCustomer(req)) {
+        try {
+            const orders = await Order.find({ email: req.user.email });
             res.json(orders);
-        }catch(e){
-            res.status(500).json({error:"Failed to show"})
+        } catch (e) {
+            res.status(500).json({ error: "Failed to show orders" });
         }
-    }else if(isItAdmin(req)){
-             try{
+    } else if (isItAdmin(req)) {
+        try {
             const orders = await Order.find();
             res.json(orders);
-        }catch(e){
-            res.status(500).json({error:"Failed to show"})
+        } catch (e) {
+            res.status(500).json({ error: "Failed to show all orders" });
         }
-    }else{
-          res.status(404).json({error:"UnAuthorized"})
+    } else {
+        res.status(404).json({ error: "Unauthorized Access" });
     }
 }
 
-
-// In your orders controller file
-
+// 4. Approve Order (With Email Notification)
 export async function approveOrder(req, res) {
-    const orderId = req.params.orderId; // or req.params.id depending on your route
+    const orderId = req.params.orderId;
 
-    // Check if user is admin
     if (!isItAdmin(req)) {
-        res.status(403).json({ error: "Unauthorized - Admin access required" });
-        return;
+        return res.status(403).json({ error: "Unauthorized - Admin access required" });
     }
 
     try {
-        // Find the order
         const order = await Order.findById(orderId);
 
         if (!order) {
-            res.status(404).json({ error: "Order not found" });
-            return;
+            return res.status(404).json({ error: "Order not found" });
         }
 
-        // Check if already approved
         if (order.isApproved) {
-            res.status(400).json({ error: "Order is already approved" });
-            return;
+            return res.status(400).json({ error: "Order is already approved" });
         }
 
-        // Update the order status
         order.isApproved = true;
+        order.isDeclined = false; // Reset decline if approving
         await order.save();
 
-        // Optional: You might want to do additional things here:
-        // - Send confirmation email to customer
-        // - Update inventory/stock
-        // - Create notification
-        // - Log the approval
+        // Customer හට Email එක යැවීම
+        await sendStatusEmail(order.email, "Approved", order);
 
         res.status(200).json({ 
-            message: "Order approved successfully",
+            message: "Order approved and notification email sent",
             order: order 
         });
 
@@ -215,26 +170,36 @@ export async function approveOrder(req, res) {
     }
 }
 
+// 5. Decline Order (With Email Notification)
 export async function declineOrder(req, res) {
-  try {
     const { orderId } = req.params;
 
-    const order = await Order.findById(orderId);
-
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
+    if (!isItAdmin(req)) {
+        return res.status(403).json({ error: "Unauthorized - Admin access required" });
     }
 
-    if (order.isApproved) {
-      return res.status(400).json({ message: "Approved order cannot be declined" });
+    try {
+        const order = await Order.findById(orderId);
+
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        if (order.isApproved) {
+            return res.status(400).json({ message: "Approved order cannot be declined" });
+        }
+
+        order.isDeclined = true;
+        order.isApproved = false;
+        await order.save();
+
+        // Customer හට Email එක යැවීම
+        await sendStatusEmail(order.email, "Declined", order);
+
+        res.status(200).json({ message: "Order declined and notification email sent" });
+
+    } catch (err) {
+        console.error("Error declining order:", err);
+        res.status(500).json({ message: "Failed to decline order" });
     }
-
-    order.isDeclined = true;
-    await order.save();
-
-    res.status(200).json({ message: "Order declined successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to decline order" });
-  }
 }
